@@ -81,8 +81,6 @@ Problems found, with the evidence kept in [NOTES.md](NOTES.md) (test runs 1 to 1
 | 6 | Smaller: startup stall when the window starts minimized, pause stops pings, unknown `OpenOLResources` package, Steam profile warning | see NOTES | Test runs 3 and 7 and source |
 | 7 | The standalone relay never sends the late-join snapshot queue (picked-up items, matinee and hero state of the other players are lost for a late joiner) | `server_drain_snaps` is declared and documented as "called each tick" but the CLI loop in `main.cpp` does not call it (the loop in `server_run` does) | Protocol test S9 to S11 (XFAIL on the upstream relay, PASS with patch 0003); found with a debug build that logged the queue |
 
-These problems have not been reported to the OpenOL authors; the fork is developed on its own.
-
 ## Licence
 
 Checked on 2026-10-25 (GitHub API): [OpenOL](https://github.com/ShyKiss/OpenOL) and [OpenOL-Relay](https://github.com/ShyKiss/OpenOL-Relay) state
