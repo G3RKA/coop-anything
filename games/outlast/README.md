@@ -5,7 +5,7 @@
 | Engine | Unreal Engine 3 (`CookedPCConsole`) |
 | Versions tested | Steam build 576074, `Binaries\Win32\OLGame.exe` SHA-256 `fc06a9d562ea41757fa7c95abae67c89fb4f56a9c970122fdef2f15758f2bb0d`, Whistleblower DLC installed, Windows 11 |
 | Projects | [OpenOL fork with our patches, play kit and tests](https://github.com/G3RKA/OpenOL) (own development, `tools/outlast-coop/`), [OpenOL](https://github.com/ShyKiss/OpenOL) with [OpenOL-Relay](https://github.com/ShyKiss/OpenOL-Relay) (directory: alpha), [Outlast-Together](https://github.com/LucianLandIsBack/Outlast-Together) (abandoned) |
-| QA level | automated (full suite 67 PASS, 4 XFAIL known bugs on patch v5; groups A, B, C of the suite repeated on patch v7 (A, B, C, G: 28 PASS, 1 SKIP); hands-free checks on patch v7: sweep of 95 checkpoints, animation probe with a twin; see [QA](#qa)) |
+| QA level | automated (full suite 67 PASS, 4 XFAIL known bugs on patch v5; the whole suite repeated on patch v7 (groups A to H, N and P: 83 PASS, 1 SKIP, 4 XFAIL known bugs); hands-free checks on patch v7: sweep of 95 checkpoints, animation probe with a twin; see [QA](#qa)) |
 | Last updated | 2026-10-28 |
 
 ## Where things stand
