@@ -5,16 +5,17 @@
 | Engine | Unreal Engine 3 (`CookedPCConsole`) |
 | Versions tested | Steam build 576074, `Binaries\Win32\OLGame.exe` SHA-256 `fc06a9d562ea41757fa7c95abae67c89fb4f56a9c970122fdef2f15758f2bb0d`, Whistleblower DLC installed, Windows 11 |
 | Projects | [OpenOL fork with our patches, play kit and tests](https://github.com/G3RKA/OpenOL) (own development, `tools/outlast-coop/`), [OpenOL](https://github.com/ShyKiss/OpenOL) with [OpenOL-Relay](https://github.com/ShyKiss/OpenOL-Relay) (directory: alpha), [Outlast-Together](https://github.com/LucianLandIsBack/Outlast-Together) (abandoned) |
-| QA level | automated (67 PASS, 4 XFAIL known bugs in the last full run; see [QA](#qa)) |
-| Last updated | 2026-10-22 |
+| QA level | automated (full suite 67 PASS, 4 XFAIL known bugs on patch v5; hands-free checks on patch v7: sweep of 95 checkpoints, animation probe with a twin; see [QA](#qa)) |
+| Last updated | 2026-10-28 |
 
 ## Where things stand
 
 OpenOL 2.1.0 has a working multiplayer beta if you host with the standalone OpenOL-Relay 2.1.0 and use the room
 `PUBLIC`. Two clients on one PC stayed connected for runs of 5 to 13 minutes, saw each other, shared doors, and shared
 player-spawned enemies with damage, death and respawn. Story sync is crude: a trigger touched by one player fires for
-everyone wherever they are, checkpoint loads are not synced, and map enemies are duplicated (each client runs its own
-copy and both attack the same player). The embedded relay *source copy* in the OpenOL repo uses the old packet format (the relay inside the release exe works). Nothing was
+everyone wherever they are, and, in OpenOL as released, checkpoint loads are not synced and map enemies are duplicated (each client runs its own
+copy and both attack the same player). The optional exe patch of this write-up (see "What we changed") keeps one real copy of each map enemy, carries a checkpoint load to the other client and shows
+the idle poses of waypoint enemies on both screens. The embedded relay *source copy* in the OpenOL repo uses the old packet format (the relay inside the release exe works). Nothing was
 tested between two PCs.
 
 ## Existing work
@@ -61,7 +62,8 @@ With it a trigger is forwarded only to players whose last known hero position is
 keeps upstream behaviour. `0002` [relay-patches/0002-openol-relay-enemy-packet-ids.patch](https://github.com/G3RKA/OpenOL/tree/main/tools/outlast-coop/relay-patches/0002-openol-relay-enemy-packet-ids.patch) makes the relay use the `ENEMY_*` ids the 2.1.0 client sends (`LOC` 0x04, door ids 0x05 to 0x08), so a player who joins while an enemy is alive gets its position in the snapshot (the owner streams positions anyway, so in game the effect is small). `0003` [relay-patches/0003-openol-relay-drain-snapshots.patch](https://github.com/G3RKA/OpenOL/tree/main/tools/outlast-coop/relay-patches/0003-openol-relay-drain-snapshots.patch) is a one-line fix: the standalone (CLI) relay fills the late-join snapshot queue but its main loop never calls `server_drain_snaps`, so a player who joins late never receives picked-up items, the other player's last matinee and hero state, or the automatic door, enemy and pushable replay (the game requests doors, enemies and pushables itself, so those still worked). All three apply to `OpenOL-Relay` at `b9def512` in this order (0003 also applies on its own). Trade-off: a player who is far away misses the trigger and the story
 state of the two players can differ until they meet; pick a radius that covers the area you play in together (the suite uses 3000). Nothing in OpenOL itself was changed.
 
-**Native patch for duplicated map enemies (OpenOL exe, optional):** [exe-patch](https://github.com/G3RKA/OpenOL/tree/main/tools/outlast-coop/exe-patch/README.md) adds about 1 KB of code to `OLGame.exe` of OpenOL 2.1.0 and redirects two calls (`ApplySpawn`, `SendSpawn` in `TickSend`): when two copies of one map enemy meet, the copy of the lower player id stays real and the other client destroys its own copy, keeping only the puppet. Found with Ghidra from OpenOL's public multiplayer source, no Outlast source. Tests A4, A4b pass with it and fail on the original exe (twin).
+**Native patch for duplicated map enemies (OpenOL exe, optional):** [exe-patch](https://github.com/G3RKA/OpenOL/tree/main/tools/outlast-coop/exe-patch/README.md) adds about 6.6 KB of code to `OLGame.exe` of OpenOL 2.1.0 (seven redirected sites; the exe is never redistributed, the player applies the patch to their own copy, see "Licence"). What it does: when two copies of one map enemy meet (`ApplySpawn`, `SendSpawn` in `TickSend`), the copy of the lower player id stays real and the other client destroys its own copy, keeping only the puppet (compared at the places where the copies first appeared);
+a checkpoint load on one client is carried to the others (new world packet 0x11); an enemy that plays an idle pose on a waypoint (script `PlayFullBodyAnim`) plays it on the other player's screen too (new world packet 0x12, the animation sets of the dropped copy are handed to the puppet); a small data area that tests read and set from outside (kill switches, counters, a command mailbox that loads checkpoints without mouse and keyboard). Found with Ghidra from OpenOL's public multiplayer source, no Outlast source. Tests A4, A4b pass with it and fail on the original exe (twin).
 
 **No-source workaround for duplicated map enemies (without the native patch):** set `SyncEnemies=False` in `OLMultiplayer.ini` on every client. Then no enemy packets are sent or applied: each player
 has only their own, independent copy of every enemy (no ghost copy, no double damage, but the partner does not see your enemies and you do not see theirs). A relay-side
@@ -75,6 +77,7 @@ Problems found, with the evidence kept in [NOTES.md](NOTES.md) (test runs 1 to 1
 | 3 | Relay and client use different `ENEMY_*` ids (`LOC` 0x08 vs 0x04, door ids shifted by one) | Hand-copied constants | Protocol test T6/T7: the upstream relay's late-join snapshot has `SPAWN` but no `LOC`; relay patch 0002 fixes it |
 | 4 | Checkpoint loads are not synced and triggers fire for everyone out of context | Touch events are sent by path and force-activated on every client | Test run 7: scripted peer sent `SeqEvent_Touch_0..30`; 13 fired on both clients, story and a checkpoint save advanced for both. Trigger part mitigated by the relay patch (suite B3/B4, `relay_filter_test.py`); checkpoint loads still not synced |
 | 5 | Map enemies are duplicated and both copies attack the same player (reproduced after checkpoint loads through the F6 overlay; **not yet checked in normal story progress**, see the open hypothesis in NOTES.md) | Every client sends every local enemy; no single owner for map enemies | Test run 8: two patients on screen, `HERO 0x07` from both copies, double damage. **Fixed by the native patch** (A4, A4b PASS; NOTES test run 21) |
+| 5b | The second player never sees an idle pose of a waypoint enemy (leaning, shaking a cage, banging a head): the enemy stands or walks in place | Only the flag "animating" (bit 4 of the `LOC` flags) crosses the wire, no animation name; the puppet only learns to stop an animation. With the one-owner rule the second player has only the puppet. The scripted animations (`SE_AI_*`) also live in anim sets the level hands to the real enemy at spawn, which a puppet lacks | Test run 25: owner and puppet animate together after the patch (12 of 12 seconds on two prison checkpoints), the client log says `PlayCustomAnim ..., Animation Not Found!!` without the anim-set handover, and the twin with the feature off stays at 0 |
 | 6 | Smaller: startup stall when the window starts minimized, pause stops pings, unknown `OpenOLResources` package, Steam profile warning | see NOTES | Test runs 3 and 7 and source |
 | 7 | The standalone relay never sends the late-join snapshot queue (picked-up items, matinee and hero state of the other players are lost for a late joiner) | `server_drain_snaps` is declared and documented as "called each tick" but the CLI loop in `main.cpp` does not call it (the loop in `server_run` does) | Protocol test S9 to S11 (XFAIL on the upstream relay, PASS with patch 0003); found with a debug build that logged the queue |
 
@@ -172,6 +175,21 @@ protocol test without the game, [harness/relay_filter_test.py](https://github.co
 probe's timeout), a wrong start map (`adminblock_persistent` crashes the engine, see "How the game works"), a spawn aim that put the enemy out of
 its attack range, and an idle enemy that only attacks a player that moves (about 100 to 190 units); each is handled in the suite.
 
+**Hands-free checks on patch v7 (2026-10-28, two real clients, no mouse and no keyboard):** the patch carries a data area and a command mailbox, so these tests load checkpoints and read the game's memory instead of driving the overlay
+([harness/](https://github.com/G3RKA/OpenOL/tree/main/tools/outlast-coop/harness/)):
+
+| Check | Result |
+|---|---|
+| `mailbox_live.py`: a checkpoint load through the mailbox answers, moves the hero, both clients alive | 3 of 3 PASS |
+| `shared_cp_live.py`: a load on one client is followed by the other, no echo, the switched-off twin does not follow | SC1 to SC5 PASS |
+| `sweep.py`, every checkpoint of every level group loaded on both clients one after the other: applied, no hang, no crash box, equal enemy counts, no enemy simulated twice | 95 checkpoints: no hang, no crash, no double simulation, no count difference; 21 with enemies; 4 not applied (the F6 loader travels to the map and loads the last save when the target checkpoint's sublevel is not streamed in: `Courtyard_Soldier2`, `Female_2ndFloorChute`, `Female_3rdFloorPostHole`, `Lab_PremierAirLock`); the earlier sweep (patch v3) had 7 not applied of 90 (three of them in the sewer, which now start on the sewer map) and one enemy simulated twice |
+| `probe_positions.py Revisit_To3rdfloor Revisit_Soldier3 6`: the case where one enemy walked away before the other client loaded | 2 enemies on one owner, none doubled, equal counts (on patch v5 a re-run counted 3 where 4 were expected after a load race) |
+| `probe_anim.py` on prison checkpoints with waypoint enemies: seconds in which the owner's enemy and its puppet both animate | 12 of 12 and 12 of 12; twin with the feature off (`--disable 8`): 0, all `cnt_anim_*` counters 0 |
+| `hosttest.py` (no game): the patch's C code against a fake image and engine mocks: packet bytes, queue, FName strings, call parameters, the anim-set handover | 27 checks PASS |
+| `relay_state_test.py` S14 (no game): world types 0x11 and 0x12 pass the relay unchanged, are not echoed and not replayed to a late joiner | PASS (18 of 18 in the file) |
+
+The full desktop suite (`suite.py`, mouse and keyboard) was last run on patch v5; it has not been repeated on v7.
+
 Limits, plainly: the suite covers connection stability, spawn, doors and triggers (injected), map-enemy ownership, and player-spawned
 enemies with damage, death and respawn. Not covered in game: pushables (applying a remote push could not be observed), cutscenes, pickups, story progress, other enemy types, two PCs. The
 bots use desktop input and the F6 overlay (to load checkpoints, spawn enemies and set health), not an in-game bot, which the repo prefers.
@@ -201,8 +219,9 @@ Unverified over the internet. The setup that worked on one PC:
 ## Known issues
 
 What a player will notice: a connection that silently does nothing when the room code is wrong; story events firing
-while a player is elsewhere; a second copy of the same map enemy near the first, so enemies hit harder; checkpoint
-loads that do not carry the partner along; a game error box (engine assertion in `UnWorld.cpp`) when a checkpoint in
+while a player is elsewhere; without the exe patch a second copy of the same map enemy near the first, so enemies hit harder, and
+checkpoint loads that do not carry the partner along; with the patch, 4 of 95 checkpoints of the F6 list do not load (the loader travels to the map and loads the last save), and an enemy that exists on one client only
+has no copy to take its animation sets from (its idle pose may then fail to play on the other screen; not observed); a game error box (engine assertion in `UnWorld.cpp`) when a checkpoint in
 another level group is loaded from the F6 overlay, seen with a single client too (no partner needed).
 With "Start Server" (the relay inside the shipped exe) a late joiner gets no position of an enemy that is already on the
 map (test E5); the standalone relay does not have that problem.
@@ -212,6 +231,7 @@ map (test E5); the standalone relay does not have that problem.
 - OpenOL cannot be rebuilt without the full, non-public Outlast source tree (see NOTES.md, build check), so further native fixes
   go into the exe patch, the way the one-owner rule did. Still open there: trigger context (fire a trigger only for players near it)
   and the E5 enemy position in the relay inside the shipped exe.
+- Repeat the full desktop suite on patch v7, and add a game test for the animation packet that does not need a checkpoint with a waypoint enemy picked by hand.
 - Not exercised in the game, only by protocol tests: pickups, cutscene (matinee) state, the effect of a remote push. The F6 overlay
   cannot spawn items (Spawns has only Enemies), so a check needs a real story pass.
 - Check whether duplicates also appear in normal story progress, not only after overlay checkpoint loads (needs a New Game run).

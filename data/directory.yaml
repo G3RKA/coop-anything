@@ -4328,14 +4328,16 @@
   qa: automated
   notes: A fork of OpenOL with its own work in tools/outlast-coop (the upstream has no license, the folder is MIT). A native patch
     of OpenOL 2.1.0's OLGame.exe keeps one real copy of every map enemy (the lower player id wins) instead of two,
-    the same rule is written in EnemyChannel.cpp (not compiled), plus host and join scripts, three relay patches as files and an
-    automated suite with real clients (67 pass, 4 known-bug expectations; menu path, New Game and rejoin 6 of 6). Tested on one PC
-    with two copies of the game; two PCs, the internet and three players are untested. Checkpoint loads are still not shared and
-    story triggers still fire for everyone wherever they are.
+    the same rule is written in EnemyChannel.cpp (not compiled). The same patch carries a checkpoint load to the other client and shows
+    the idle poses of waypoint enemies on both screens. Also host and join scripts, three relay patches as files and an
+    automated suite with real clients (67 pass, 4 known-bug expectations on patch v5; menu path, New Game and rejoin 6 of 6) and
+    hands-free tests on patch v7 (a sweep of 95 checkpoints without hang, crash or doubled enemy; 4 checkpoints of the overlay list do not load). Tested on one PC
+    with two copies of the game; two PCs, the internet and three players are untested. Story triggers still fire for everyone
+    wherever they are.
   sources:
   - https://github.com/G3RKA/OpenOL
   - https://github.com/ShyKiss/OpenOL
-  checked: 2026-10-22
+  checked: 2026-10-28
 - game: Outlast
   year: 2013
   engine: Unreal Engine 3
