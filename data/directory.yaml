@@ -4332,8 +4332,8 @@
     the idle poses of waypoint enemies on both screens. Also host and join scripts, three relay patches as files and an
     automated suite with real clients (67 pass, 4 known-bug expectations on patch v5; menu path, New Game and rejoin 6 of 6) and
     hands-free tests on patch v7 (a sweep of 95 checkpoints without hang, crash or doubled enemy; 4 checkpoints of the overlay list do not load). Tested on one PC
-    with two copies of the game; two PCs, the internet and three players are untested. Story triggers still fire for everyone
-    wherever they are.
+    with two copies of the game; two PCs, the internet and three players are untested. The exe patch drops a story trigger
+    from a player more than 3000 units away (works with any relay).
   sources:
   - https://github.com/G3RKA/OpenOL
   - https://github.com/ShyKiss/OpenOL
